@@ -8,9 +8,6 @@ public class QueryProcessingUtils {
         if (mTarget == null) {
             return(null);
         }
-        if (fColumn instanceof IdField) {
-            return mTarget.getPKGetter();
-        }
         return mTarget.getColumnsGetters().get(fColumn.getColumnName());
     }
 

@@ -20,8 +20,6 @@ public class Metamodel<T> {
     private final List<ForeignKeyField> fForeignKeys;
     private final HashMap<String, Method> fmtColumnsGetters;
     private final HashMap<String, Method> fmtColumnsSetters;
-    private Method mtPKGetter;
-    private Method mtPKSetter;
 
     public static <T> Metamodel<T> of(Class<T> cClass) {
         if (cClass.getAnnotation(Entity.class) == null) {
@@ -39,45 +37,10 @@ public class Metamodel<T> {
         this.fmtColumnsSetters = new HashMap<>();
     }
 
-    public Method getPKGetter() {
-        if (fPrimaryKey == null) {
-            return null;
-        }
-        if (mtPKGetter == null) {
-            Method[] mtFoundMethods = cModelClass.getDeclaredMethods();
-            for (Method mt : mtFoundMethods) {
-                if (mt.getName().toLowerCase().matches("(.*)get" + this.fPrimaryKey.getName().toLowerCase() + "(.*)")) {
-                    mtPKGetter = mt;
-                    return mtPKGetter;
-                }
-            }
-            throw new GetterSetterMissingException(fPrimaryKey.getColumnName(), getTableName(), true);
-        }
-        return mtPKGetter;
-    }
-
-    public Method getPKSetter() {
-        if (fPrimaryKey == null) {
-            return null;
-        }
-        if (mtPKSetter == null) {
-            Method[] mtFoundMethods = cModelClass.getDeclaredMethods();
-            for (Method mt : mtFoundMethods) {
-                if (mt.getName().toLowerCase().matches("(.*)set" + this.fPrimaryKey.getName().toLowerCase() + "(.*)")) {
-                    mtPKSetter = mt;
-                    return mtPKSetter;
-                }
-            }
-            throw new GetterSetterMissingException(fPrimaryKey.getColumnName(), getTableName(), false);
-        }
-        return mtPKSetter;
-    }
-
-
     public HashMap<String, Method> getColumnsGetters() {
         if (fmtColumnsGetters.isEmpty()) {
             Method[] mtFoundMethods = cModelClass.getDeclaredMethods();
-            for (ColumnField f : getColumns()) {
+            for (SQLField f : getTableFields()) {
                 boolean bFoundMethod = false;
                 for (Method mt : mtFoundMethods) {
                     if (mt.getName().toLowerCase().matches("(.*)get" + f.getField().getName().toLowerCase() + "(.*)")) {
@@ -97,7 +60,7 @@ public class Metamodel<T> {
     public HashMap<String, Method> getColumnsSetters() {
         if (fmtColumnsSetters.isEmpty()) {
             Method[] mtFoundMethods = cModelClass.getDeclaredMethods();
-            for (ColumnField f : getColumns()) {
+            for (SQLField f : getTableFields()) {
                 boolean bFoundMethod = false;
                 for (Method mt : mtFoundMethods) {
                     if (mt.getName().toLowerCase().matches("(.*)set" + f.getField().getName().toLowerCase() + "(.*)")) {

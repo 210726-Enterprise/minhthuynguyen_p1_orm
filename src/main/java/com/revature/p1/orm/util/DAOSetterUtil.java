@@ -15,9 +15,6 @@ public class DAOSetterUtil {
         if (mTarget == null) {
             return(null);
         }
-        if (fColumn instanceof IdField) {
-            return mTarget.getPKSetter();
-        }
         return mTarget.getColumnsSetters().get(fColumn.getColumnName());
     }
 
