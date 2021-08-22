@@ -6,6 +6,7 @@ import com.revature.p1.orm.util.DAOSetterUtil;
 import com.revature.p1.orm.util.Metamodel;
 
 import java.lang.reflect.InvocationTargetException;
+import java.rmi.NoSuchObjectException;
 import java.sql.*;
 import java.util.*;
 
@@ -118,18 +119,30 @@ public class SQLOperationHandler {
         }
     }
 
-    public boolean updateIfExists(Object obj) throws SQLException, InvocationTargetException, IllegalAccessException {
-        Metamodel<?>mObj = Configuration.getMetamodelByClassName(obj.getClass().getName());
+    public boolean update(Object objTarget) throws SQLException, InvocationTargetException, IllegalAccessException {
+        Metamodel<?> mObj = Configuration.getMetamodelByClassName(objTarget.getClass().getName());
         if (!mKnownTables.contains(mObj)) {
             updateExtantTables();
             if (!mKnownTables.contains(mObj)) {
-                return persistThis(obj);
+                return persistThis(objTarget);
             }
         }
         try (Connection objConnection = objConnFactory.getConnection()) {
             Statement sStatement = objConnection.createStatement();
-
+            //sStatement.execute()
         }
+        return false;
+    }
+
+    public boolean deleteIfExists(Object obj) throws SQLException {
+        Metamodel<?> mObj = Configuration.getMetamodelByClassName(obj.getClass().getName());
+        if (!mKnownTables.contains(mObj)) {
+            updateExtantTables();
+            if (!mKnownTables.contains(mObj)) {
+                throw new NoSuchElementException("Table named " + mObj.getTableName() + " not found in database! It might have been dropped already.");
+            }
+        }
+
         return false;
     }
 }

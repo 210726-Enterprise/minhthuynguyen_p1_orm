@@ -10,9 +10,9 @@ public class DQLEngine {
         if (mTarget.getPrimaryKey() == null) {
             throw new IllegalStateException(cTargetClass.getName() + ": class contains no annotated ID field, cannot perform getRowByID!");
         }
-        StringBuilder strSQL = new StringBuilder("select * from " + QueryProcessingUtils.toSQLName(mTarget.getTableName()));
-        strSQL.append(" where " + QueryProcessingUtils.toSQLName(mTarget.getPrimaryKey().getColumnName()) + "=" + iID + " limit 1");
-        return strSQL.toString();
+        StringBuilder strSql = new StringBuilder("select * from " + QueryProcessingUtils.toSQLName(mTarget.getTableName()));
+        strSql.append(" where " + QueryProcessingUtils.toSQLName(mTarget.getPrimaryKey().getColumnName()) + "=" + iID + " limit 1");
+        return strSql.toString();
     }
     public static String prepareIfTableExists() {
         return "select exists (select from information_schema.tables where table_name = ?)";

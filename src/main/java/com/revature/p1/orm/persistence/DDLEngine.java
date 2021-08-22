@@ -10,20 +10,20 @@ public class DDLEngine {
         if (mModel == null) {
             return null;
         }
-        StringBuilder strSQL = new StringBuilder("create table if not exists " + mModel.getTableName() + " (");
+        StringBuilder strSql = new StringBuilder("create table if not exists " + mModel.getTableName() + " (");
         if ((mModel.getPrimaryKey() == null) && (mModel.getColumns().isEmpty())) {
             throw new IllegalStateException("Annotated class " + strName + " has no annotated fields!");
         }
         if (mModel.getPrimaryKey() != null) {
-            strSQL.append(mModel.getPrimaryKey().getColumnName() + " serial primary key,");
+            strSql.append(mModel.getPrimaryKey().getColumnName() + " serial primary key,");
         }
         for (Object f : mModel.getColumns()) {
-            strSQL.append(((ColumnField) f).getColumnName() + " " + (SQLTypeMapping.toSQLType(((ColumnField) f).getType())) + ",");
+            strSql.append(((ColumnField) f).getColumnName() + " " + (SQLTypeMapping.toSQLType(((ColumnField) f).getType())) + ",");
         }
-        strSQL.deleteCharAt(strSQL.length() - 1);
-        strSQL.append(");");
-        System.out.println(strSQL.toString());
-        return strSQL.toString();
+        strSql.deleteCharAt(strSql.length() - 1);
+        strSql.append(");");
+        System.out.println(strSql.toString());
+        return strSql.toString();
     }
     public static String createByClass(Class<?> cTarget) {
         return createByClassName(cTarget.getName());

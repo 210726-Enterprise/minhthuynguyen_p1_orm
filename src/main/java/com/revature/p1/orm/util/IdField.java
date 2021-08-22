@@ -1,33 +1,70 @@
 package com.revature.p1.orm.util;
 
 import com.revature.p1.orm.annotations.Id;
+import com.revature.p1.orm.exception.GetterSetterMissingException;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Optional;
 
-public class IdField implements SQLField {
+public class IdField<T> implements SQLField {
 
-    private Field field;
+    private final Field fThis;
+    private Method mtGetter, mtSetter;
 
-    public IdField(Field field) {
-        if (field.getAnnotation(Id.class) == null) {
+    public IdField(Field fThis) {
+        if (fThis.getAnnotation(Id.class) == null) {
             throw new IllegalStateException("Cannot create IdField object! Provided field, " + getName() + "is not annotated with @Id");
         }
-        this.field = field;
+        this.fThis = fThis;
     }
 
     public String getName() {
-        return field.getName();
+        return fThis.getName();
     }
 
     public Class<?> getType() {
-        return field.getType();
+        return fThis.getType();
     }
 
     public String getColumnName() {
-        return field.getAnnotation(Id.class).columnName().toLowerCase();
+        return fThis.getAnnotation(Id.class).columnName().toLowerCase();
     }
 
     public Field getField() {
-        return field;
+        return fThis;
+    }
+
+    private void findGetter() {
+        mtGetter = Arrays.stream(fThis.getDeclaringClass().getDeclaredMethods())
+                .filter(mt -> mt.getName().toLowerCase()
+                        .contains("get" + fThis.getName().toLowerCase()))
+                .findFirst()
+                .orElseThrow(GetterSetterMissingException::new);
+    }
+
+    public Optional<T> getValue(Object objInvoker) throws InvocationTargetException, IllegalAccessException {
+        if (mtGetter == null) {
+            findGetter();
+        }
+        return Optional.of((T)mtGetter.invoke(objInvoker));
+    }
+
+    private void findSetter() {
+        mtSetter = Arrays.stream(fThis.getDeclaringClass().getDeclaredMethods())
+                .filter(mt -> mt.getName().toLowerCase()
+                        .contains("set" + fThis.getName().toLowerCase()))
+                .findFirst()
+                .orElseThrow(GetterSetterMissingException::new);
+    }
+
+    public boolean setValue(Object objInvoker, T objValue) throws InvocationTargetException, IllegalAccessException {
+        if (mtSetter == null) {
+            findSetter();
+        }
+        mtSetter.invoke(objInvoker,objValue);
+        return true;
     }
 }

@@ -12,16 +12,16 @@ public enum SQLTypeMapping {
     STRING(new String[]{"java.lang.String"},"varchar(30)"),
     CHAR(new String[]{"char","java.lang.Char"},"char(1)");
 
-    private final String strSQLType;
+    private final String strSqlType;
     private final List<String> strJavaType;
-    SQLTypeMapping(String[] strJavaType, String strSQLType) {
+    SQLTypeMapping(String[] strJavaType, String strSqlType) {
         this.strJavaType = new ArrayList<>();
         Arrays.stream(strJavaType).forEach(str -> this.strJavaType.add(str));
-        this.strSQLType = strSQLType;
+        this.strSqlType = strSqlType;
     }
 
     public String getSQLType(String strType) {
-        return strSQLType;
+        return strSqlType;
     }
     public List<String> getJavaTypes() {
         return strJavaType;
@@ -30,7 +30,7 @@ public enum SQLTypeMapping {
     public static String toSQLType(Type tJavaType) {
         for (SQLTypeMapping ePair : SQLTypeMapping.values()) {
             if (ePair.strJavaType.contains(tJavaType.getTypeName())) {
-                return ePair.strSQLType;
+                return ePair.strSqlType;
             }
         }
         return null;

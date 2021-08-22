@@ -16,6 +16,7 @@ public class Metamodel<T> {
 
     private final Class<T> cModelClass;
     private final IdField fPrimaryKey;
+    private boolean bPKInitialized = false;
     private final List<ColumnField> fColumns;
     private final List<ForeignKeyField> fForeignKeys;
     private final HashMap<String, Method> fmtColumnsGetters;
@@ -95,27 +96,35 @@ public class Metamodel<T> {
     }
 
     public IdField getPrimaryKey() {
-        Field[] fields = cModelClass.getDeclaredFields();
-        for (Field field : fields) {
-            Id primaryKey = field.getAnnotation(Id.class);
-            if (primaryKey != null) {
-                return new IdField(field);
+        if (fPrimaryKey == null) {
+            if (bPKInitialized) {
+                return null;
             }
+            for (Field f : cModelClass.getDeclaredFields()) {
+                if (f.getAnnotation(Id.class) != null) {
+                    bPKInitialized = true;
+                    return new IdField(f);
+                }
+            }
+            bPKInitialized = true;
+            return null;
         }
-        //throw new RuntimeException("Did not find a field annotated with @Id in: " + cModelClass.getName());
-        return null;
+        return fPrimaryKey;
     }
 
     public List<ColumnField> getColumns() {
-        Field[] fields = cModelClass.getDeclaredFields();
-        List<ColumnField> fFoundColumns = new ArrayList<>();
-        for (Field field : fields) {
-            Column column = field.getAnnotation(Column.class);
-            if (column != null) {
-                fFoundColumns.add( new ColumnField(field));
+        if (fColumns.isEmpty()) {
+            Field[] fields = cModelClass.getDeclaredFields();
+            List<ColumnField> fFoundColumns = new ArrayList<>();
+            for (Field field : fields) {
+                Column column = field.getAnnotation(Column.class);
+                if (column != null) {
+                    fFoundColumns.add(new ColumnField(field));
+                }
             }
+            return fFoundColumns;
         }
-        return fFoundColumns;
+        return fColumns;
     }
 
     public List<SQLField> getTableFields() {
