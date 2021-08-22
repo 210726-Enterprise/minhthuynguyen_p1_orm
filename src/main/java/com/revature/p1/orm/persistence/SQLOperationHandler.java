@@ -1,12 +1,8 @@
 package com.revature.p1.orm.persistence;
 
-import com.revature.p1.orm.util.ColumnField;
-import com.revature.p1.orm.util.Configuration;
-import com.revature.p1.orm.util.DAOSetterUtil;
-import com.revature.p1.orm.util.Metamodel;
+import com.revature.p1.orm.util.*;
 
 import java.lang.reflect.InvocationTargetException;
-import java.rmi.NoSuchObjectException;
 import java.sql.*;
 import java.util.*;
 
@@ -29,8 +25,8 @@ public class SQLOperationHandler {
                     .filter(m -> {
                         try {
                             sPrep.setString(1,m.getTableName());
-                            ResultSet objRS = sPrep.executeQuery();
-                            return(objRS.next());
+                            ResultSet objRs = sPrep.executeQuery();
+                            return(objRs.next());
                         } catch (SQLException throwables) {
                             throwables.printStackTrace();
                             return false;
@@ -47,7 +43,7 @@ public class SQLOperationHandler {
      * @throws InvocationTargetException
      * @throws IllegalAccessException
      */
-    public boolean persistThis(Object obj) throws InvocationTargetException, IllegalAccessException {
+    public boolean persistThis(Object obj) {
         try (Connection objConnection = objConnFactory.getConnection()){
             Statement sStatement = objConnection.createStatement();
             if (!mKnownTables.contains(Configuration.getMetamodelByClassName(obj.getClass().getName()))) {
@@ -85,28 +81,27 @@ public class SQLOperationHandler {
         }
         try (Connection objConnection = objConnFactory.getConnection()) {
             Statement sStatement = objConnection.createStatement();
-            ResultSet objRS = sStatement.executeQuery(DQLEngine.queryRowByID(mTarget.getBaseClass(),iID));
+            ResultSet objRs = sStatement.executeQuery(DQLEngine.selectRowByID(mTarget.getBaseClass(),iID));
             Optional<?> objResult = Optional.of(mTarget.getBaseClass().newInstance());
-            if (objRS.next()) {
+            if (objRs.next()) {
                 if (mTarget.getPrimaryKey()!=null) {
-                    DAOSetterUtil.setField(objResult.get(), mTarget.getPrimaryKey(), objRS.getObject(mTarget.getPrimaryKey().getColumnName()));
+                    mTarget.getPrimaryKey().setValue(objResult.get(),objRs.getInt(mTarget.getPrimaryKey().getColumnName()));
                 }
-                for (int i=1;i<=objRS.getMetaData().getColumnCount();i++) {
-                    if (mTarget.getTableFieldNames().contains(objRS.getMetaData().getColumnName(i))) {
+                for (int i=1;i<=objRs.getMetaData().getColumnCount();i++) {
+                    if (mTarget.getTableFieldNames().contains(objRs.getMetaData().getColumnName(i))) {
                         int iTemp = i;
                         Optional<ColumnField> fSetTarget = mTarget.getColumns().stream()
                                 .filter(f -> {
                                     try {
-                                        return f.getColumnName().equals(objRS.getMetaData().getColumnName(iTemp));
-                                    } catch (SQLException throwables) {
-                                        throwables.printStackTrace();
+                                        return f.getColumnName().equals(objRs.getMetaData().getColumnName(iTemp));
+                                    } catch (SQLException e) {
+                                        e.printStackTrace();
                                         return false;
                                     }
                                 })
                                 .findFirst();
                         if (fSetTarget.isPresent()){
-                            DAOSetterUtil.setField(objResult.get(), fSetTarget.get(), objRS.getObject(i));
-                            continue;
+                            fSetTarget.get().setValue(objResult.get(),objRs.getObject(i));
                         }
                     }
                 }
@@ -114,35 +109,93 @@ public class SQLOperationHandler {
                 return objResult;
             } else {
                 objConnection.close();
-                throw new RuntimeException("Query returned no entries!");
+                return Optional.empty();
             }
         }
     }
 
+    public Optional<?> retrieveNewest(Metamodel<?> mTarget) throws SQLException, InvocationTargetException, InstantiationException, IllegalAccessException {
+        if (!mKnownTables.contains(mTarget)) {
+            return Optional.empty();
+        }
+        try (Connection objConnection = objConnFactory.getConnection()) {
+            Statement sStatement = objConnection.createStatement();
+            ResultSet objRs = sStatement.executeQuery(DQLEngine.selectLastRowById(mTarget.getBaseClass()));
+            Optional<?> objResult = Optional.of(mTarget.getBaseClass().newInstance());
+            if (objRs.next()) {
+                if (mTarget.getPrimaryKey()!=null) {
+                    mTarget.getPrimaryKey().setValue(objResult.get(),objRs.getInt(mTarget.getPrimaryKey().getColumnName()));
+                }
+                for (int i=1;i<=objRs.getMetaData().getColumnCount();i++) {
+                    if (mTarget.getTableFieldNames().contains(objRs.getMetaData().getColumnName(i))) {
+                        int iTemp = i;
+                        Optional<ColumnField> fSetTarget = mTarget.getColumns().stream()
+                                .filter(f -> {
+                                    try {
+                                        return f.getColumnName().equals(objRs.getMetaData().getColumnName(iTemp));
+                                    } catch (SQLException e) {
+                                        e.printStackTrace();
+                                        return false;
+                                    }
+                                })
+                                .findFirst();
+                        if (fSetTarget.isPresent()){
+                            fSetTarget.get().setValue(objResult.get(),objRs.getObject(i));
+                        }
+                    }
+                }
+                objConnection.close();
+                return objResult;
+            } else {
+                objConnection.close();
+                return Optional.empty();
+            }
+        }
+    }
+
+
     public boolean update(Object objTarget) throws SQLException, InvocationTargetException, IllegalAccessException {
-        Metamodel<?> mObj = Configuration.getMetamodelByClassName(objTarget.getClass().getName());
-        if (!mKnownTables.contains(mObj)) {
+        return update(objTarget, 1);
+    }
+    public boolean update(Object objTarget, int iRowCount) throws SQLException, InvocationTargetException, IllegalAccessException {
+        Metamodel<?> mTarget = Configuration.getMetamodelByClassName(objTarget.getClass().getName());
+        if (mTarget == null) {
+            return false;
+        }
+        if (!mKnownTables.contains(mTarget)) {
             updateExtantTables();
-            if (!mKnownTables.contains(mObj)) {
+            if (!mKnownTables.contains(mTarget)) {
                 return persistThis(objTarget);
             }
         }
         try (Connection objConnection = objConnFactory.getConnection()) {
             Statement sStatement = objConnection.createStatement();
-            //sStatement.execute()
+            sStatement.execute("begin");
+            String strSql = DMLEngine.updateRowById(objTarget);
+            int iUpdated = sStatement.executeUpdate(strSql);
+            if (iUpdated  < iRowCount) {
+                sStatement.execute("rollback");
+                return false;
+            }
+            sStatement.execute("commit");
+            return true;
         }
-        return false;
     }
 
-    public boolean deleteIfExists(Object obj) throws SQLException {
-        Metamodel<?> mObj = Configuration.getMetamodelByClassName(obj.getClass().getName());
-        if (!mKnownTables.contains(mObj)) {
+    public boolean delete(Object objTarget) throws SQLException, InvocationTargetException, IllegalAccessException {
+        Metamodel<?> mTarget = Configuration.getMetamodelByClassName(objTarget.getClass().getName());
+        if (!mKnownTables.contains(mTarget)) {
             updateExtantTables();
-            if (!mKnownTables.contains(mObj)) {
-                throw new NoSuchElementException("Table named " + mObj.getTableName() + " not found in database! It might have been dropped already.");
+            if (!mKnownTables.contains(mTarget)) {
+                throw new NoSuchElementException("Table named " + mTarget.getTableName() + " not found in database! It might have been dropped already.");
             }
         }
-
+        try (Connection objConnection = objConnFactory.getConnection()) {
+            Statement sStatement = objConnection.createStatement();
+            if (sStatement.executeUpdate(DMLEngine.deleteRow(objTarget)) > 0) {
+                return true;
+            }
+        }
         return false;
     }
 }

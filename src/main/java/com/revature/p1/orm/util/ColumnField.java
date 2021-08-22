@@ -60,11 +60,11 @@ public class ColumnField<T> implements SQLField {
                 .orElseThrow(GetterSetterMissingException::new);
     }
 
-    public boolean setValue(Object objInvoker, T objValue) throws InvocationTargetException, IllegalAccessException {
+    public boolean setValue(Object objInvoker, Object objValue) throws InvocationTargetException, IllegalAccessException {
         if (mtSetter == null) {
             findSetter();
         }
-        mtSetter.invoke(objInvoker,objValue);
+        mtSetter.invoke(objInvoker,(T)objValue);
         return true;
     }
 

@@ -12,7 +12,7 @@ import java.util.Optional;
 public class IdField<T> implements SQLField {
 
     private final Field fThis;
-    private Method mtGetter, mtSetter;
+    private static Method mtGetter, mtSetter;
 
     public IdField(Field fThis) {
         if (fThis.getAnnotation(Id.class) == null) {
@@ -45,11 +45,11 @@ public class IdField<T> implements SQLField {
                 .orElseThrow(GetterSetterMissingException::new);
     }
 
-    public Optional<T> getValue(Object objInvoker) throws InvocationTargetException, IllegalAccessException {
+    public Optional<Integer> getValue(Object objInvoker) throws InvocationTargetException, IllegalAccessException {
         if (mtGetter == null) {
             findGetter();
         }
-        return Optional.of((T)mtGetter.invoke(objInvoker));
+        return Optional.of((int)mtGetter.invoke(objInvoker));
     }
 
     private void findSetter() {
@@ -60,11 +60,14 @@ public class IdField<T> implements SQLField {
                 .orElseThrow(GetterSetterMissingException::new);
     }
 
-    public boolean setValue(Object objInvoker, T objValue) throws InvocationTargetException, IllegalAccessException {
+    public boolean setValue(Object objInvoker, Object objValue) throws InvocationTargetException, IllegalAccessException {
         if (mtSetter == null) {
             findSetter();
         }
-        mtSetter.invoke(objInvoker,objValue);
-        return true;
+        if (!getValue(objInvoker).isPresent() || ((getValue(objInvoker).get())==0)) {
+            mtSetter.invoke(objInvoker, objValue);
+            return true;
+        }
+        throw new IllegalArgumentException();
     }
 }

@@ -16,4 +16,5 @@ public interface SQLField<T> {
     String getColumnName();
     Field getField();
     Optional<T> getValue(Object objInvoker) throws InvocationTargetException, IllegalAccessException;
+    boolean setValue(Object objInvoker, Object objValue) throws InvocationTargetException, IllegalAccessException;
 }

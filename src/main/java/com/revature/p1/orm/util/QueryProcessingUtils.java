@@ -3,15 +3,6 @@ package com.revature.p1.orm.util;
 import java.lang.reflect.Method;
 
 public class QueryProcessingUtils {
-    public static Method getGetter(Class<?> cTarget, SQLField fColumn) {
-        Metamodel<?> mTarget = Configuration.getMetamodelByClassName(cTarget.getName());
-        if (mTarget == null) {
-            return(null);
-        }
-        return mTarget.getColumnsGetters().get(fColumn.getColumnName());
-    }
-
-
     public static String toSQLData(Object obj) {
         switch (obj.getClass().getTypeName()) {
             case "java.lang.Integer":
