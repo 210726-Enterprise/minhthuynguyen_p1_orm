@@ -39,13 +39,13 @@ class SQLOperationsTest {
 
     @Test
     @Order(3)
-    void insertRow() {
-        Assertions.assertTrue(objHandler.persistThis(test));
+    void insertRow() throws SQLException, InvocationTargetException, InstantiationException, IllegalAccessException {
+        Assertions.assertTrue(objHandler.persistThis(test).isPresent());
     }
 
     @Test
     @Order(4)
-    void update() throws SQLException, InvocationTargetException, IllegalAccessException {
+    void update() throws SQLException, InvocationTargetException, IllegalAccessException, InstantiationException {
         int iLastId;
         try (Connection objConnection = Configuration.getConnection()) {
             Statement sStatement = objConnection.createStatement();
@@ -55,7 +55,7 @@ class SQLOperationsTest {
         }
         test.setId(iLastId);
         test.setTestField2((int)(Math.random()*1000));
-        Assertions.assertTrue(objHandler.update(test));
+        Assertions.assertTrue(objHandler.update(test).isPresent());
     }
 
     @Test
@@ -69,6 +69,16 @@ class SQLOperationsTest {
 
     @Test
     @Order(6)
+    void retrieveNewest() throws SQLException, InvocationTargetException, InstantiationException, IllegalAccessException {
+        TestClass objNewest = (TestClass) objHandler.retrieveNewest(Configuration.getMetamodelByClassName(TestClass.class.getName())).get();
+        Assertions.assertEquals(test.getId(),objNewest.getId());
+        Assertions.assertEquals(test.getTestField1(),objNewest.getTestField1());
+        Assertions.assertEquals(test.getTestField2(),objNewest.getTestField2());
+
+    }
+
+    @Test
+    @Order(7)
     void delete() throws SQLException, InvocationTargetException, IllegalAccessException, InstantiationException {
         int iId = test.getId();
         Assertions.assertTrue(objHandler.delete(test));

@@ -42,19 +42,18 @@ public class SQLOperationHandler {
      * @throws InvocationTargetException
      * @throws IllegalAccessException
      */
-    public boolean persistThis(Object obj) {
-        try (Connection objConnection = Configuration.getConnection()){
+    public Optional<?> persistThis(Object obj) throws SQLException, InvocationTargetException,InstantiationException,IllegalAccessException {
+        try (Connection objConnection = Configuration.getConnection()) {
+            Metamodel<Class<?>> mTarget = Configuration.getMetamodelByClassName(obj.getClass().getName());
             Statement sStatement = objConnection.createStatement();
-            if (!mKnownTables.contains(Configuration.getMetamodelByClassName(obj.getClass().getName()))) {
+            if (!mKnownTables.contains(mTarget)) {
                 sStatement.execute(DDLEngine.createByClass(obj.getClass()));
-                mKnownTables.add(Configuration.getMetamodelByClassName(obj.getClass().getName()));
+                mKnownTables.add(mTarget);
             }
-            sStatement.execute(DMLEngine.insertRow(obj));
-            objConnection.close();
-            return true;
-        } catch (SQLException e1) {
-            System.out.println(e1.getMessage());
-            return false;
+            if (sStatement.executeUpdate(DMLEngine.insertRow(obj)) > 0) {
+                return retrieveNewest(mTarget);
+            }
+            return Optional.empty();
         }
     }
 
@@ -76,7 +75,10 @@ public class SQLOperationHandler {
     }
     private Optional<?> retrieveByMetamodel(int iID, Metamodel<?> mTarget) throws SQLException, InvocationTargetException, InstantiationException, IllegalAccessException {
         if (!mKnownTables.contains(mTarget)) {
-            return Optional.empty();
+            updateExtantTables();
+            if (!mKnownTables.contains(mTarget)) {
+                return Optional.empty();
+            }
         }
         try (Connection objConnection = Configuration.getConnection()) {
             Statement sStatement = objConnection.createStatement();
@@ -153,13 +155,13 @@ public class SQLOperationHandler {
     }
 
 
-    public boolean update(Object objTarget) throws SQLException, InvocationTargetException, IllegalAccessException {
+    public Optional<?> update(Object objTarget) throws SQLException, InvocationTargetException, IllegalAccessException, InstantiationException {
         return update(objTarget, 1);
     }
-    public boolean update(Object objTarget, int iRowCount) throws SQLException, InvocationTargetException, IllegalAccessException {
+    public Optional<?> update(Object objTarget, int iRowCount) throws SQLException, InvocationTargetException, IllegalAccessException, InstantiationException {
         Metamodel<?> mTarget = Configuration.getMetamodelByClassName(objTarget.getClass().getName());
         if (mTarget == null) {
-            return false;
+            return Optional.empty();
         }
         if (!mKnownTables.contains(mTarget)) {
             updateExtantTables();
@@ -174,10 +176,10 @@ public class SQLOperationHandler {
             int iUpdated = sStatement.executeUpdate(strSql);
             if (iUpdated  < iRowCount) {
                 sStatement.execute("rollback");
-                return false;
+                return Optional.empty();
             }
             sStatement.execute("commit");
-            return true;
+            return Optional.of(objTarget);
         }
     }
 

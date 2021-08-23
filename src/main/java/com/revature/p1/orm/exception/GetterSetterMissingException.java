@@ -1,8 +1,5 @@
 package com.revature.p1.orm.exception;
 
-
-import com.revature.p1.orm.util.SQLField;
-
 public class GetterSetterMissingException extends RuntimeException {
     public GetterSetterMissingException() {
         super();
