@@ -14,20 +14,15 @@ import java.sql.Statement;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class SQLOperationsTest {
-    private final Configuration cfg;
     private static final TestClass test = new TestClass("test", (int)(Math.random()*100));;
     private SQLOperationHandler objHandler;
     {
-        String strPassword = "project0";
-        String strUsername = "postgres";
-        String strDBUrl = "jdbc:postgresql://database-1.crgijayqoqqj.us-east-2.rds.amazonaws.com:5432/postgres?currentSchema=p1_admin";
-        cfg = new Configuration(strDBUrl, strUsername, strPassword);
-        cfg.addAnnotatedClass(TestClass.class);
+        Configuration.addAnnotatedClass(TestClass.class);
     }
 
     @BeforeEach
     void setup() throws SQLException {
-        objHandler = new SQLOperationHandler(cfg);
+        objHandler = new SQLOperationHandler();
     }
 
     @Test
@@ -52,7 +47,7 @@ class SQLOperationsTest {
     @Order(4)
     void update() throws SQLException, InvocationTargetException, IllegalAccessException {
         int iLastId;
-        try (Connection objConnection = cfg.getConnection()) {
+        try (Connection objConnection = Configuration.getConnection()) {
             Statement sStatement = objConnection.createStatement();
             ResultSet objRs = sStatement.executeQuery("select test_id from test_table order by test_id desc limit 1");
             objRs.next();

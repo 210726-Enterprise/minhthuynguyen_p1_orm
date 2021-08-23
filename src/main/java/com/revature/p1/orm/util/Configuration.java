@@ -8,31 +8,36 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class Configuration {
-	
-	private final String strDbUrl;
-	private final String strUsername;
-	private final String strPassword;
+	private static Connection objConnection = null;
+	private static final String strDbUrl = "jdbc:postgresql://database-1.crgijayqoqqj.us-east-2.rds.amazonaws.com:5432/postgres?currentSchema=p1_admin";
+	private static final String strUsername = "postgres";
+	private static final String strPassword = "project0";
 	private static List<Metamodel<Class<?>>> metamodelList;
 
-	public Configuration(String strDbUrl, String strUsername, String strPassword) {
-		this.strDbUrl = strDbUrl;
-		this.strUsername = strUsername;
-		this.strPassword = strPassword;
+	private Configuration() {
+		super();
 	}
 
-	public Connection getConnection() throws SQLException {
-		return DriverManager.getConnection(strDbUrl, strUsername, strPassword);
+	public static synchronized Connection getConnection() throws SQLException {
+		try {
+			if (objConnection == null || objConnection.isClosed()) {
+				Class.forName("org.postgresql.Driver");
+				objConnection = DriverManager.getConnection(strDbUrl, strUsername, strPassword);
+			}
+			return objConnection;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 
-	public Configuration addAnnotatedClass(Class annotatedClass) {
+	public static void addAnnotatedClass(Class annotatedClass) {
 		if(metamodelList == null) {
 			metamodelList = new LinkedList<>();
 		}
 		// generate a method in metamodel that transforms a class into an appropriate data model to be
 		// transposed into a relation db object
 		metamodelList.add(Metamodel.of(annotatedClass));
-
-		return this; // we're returning the
 	}
 	
 	public static List<Metamodel<Class<?>>> getMetamodels() {

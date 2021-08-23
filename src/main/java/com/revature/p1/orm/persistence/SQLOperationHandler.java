@@ -7,18 +7,17 @@ import java.sql.*;
 import java.util.*;
 
 public class SQLOperationHandler {
-    private final Configuration objConnFactory;
+    //private final Configuration objConnFactory;
     private final ArrayList<Metamodel<?>> mKnownTables;
 
 
-    public SQLOperationHandler(Configuration objConnFactory) throws SQLException {
+    public SQLOperationHandler() throws SQLException {
         mKnownTables = new ArrayList<>();
-        this.objConnFactory = objConnFactory;
         updateExtantTables();
     }
 
     private void updateExtantTables() throws SQLException {
-        try (Connection objConnection = objConnFactory.getConnection()) {
+        try (Connection objConnection = Configuration.getConnection()) {
             PreparedStatement sPrep = objConnection.prepareStatement(DQLEngine.prepareIfTableExists());
             Configuration.getMetamodels().stream()
                     .filter(m -> !mKnownTables.contains(m))
@@ -44,7 +43,7 @@ public class SQLOperationHandler {
      * @throws IllegalAccessException
      */
     public boolean persistThis(Object obj) {
-        try (Connection objConnection = objConnFactory.getConnection()){
+        try (Connection objConnection = Configuration.getConnection()){
             Statement sStatement = objConnection.createStatement();
             if (!mKnownTables.contains(Configuration.getMetamodelByClassName(obj.getClass().getName()))) {
                 sStatement.execute(DDLEngine.createByClass(obj.getClass()));
@@ -79,7 +78,7 @@ public class SQLOperationHandler {
         if (!mKnownTables.contains(mTarget)) {
             return Optional.empty();
         }
-        try (Connection objConnection = objConnFactory.getConnection()) {
+        try (Connection objConnection = Configuration.getConnection()) {
             Statement sStatement = objConnection.createStatement();
             ResultSet objRs = sStatement.executeQuery(DQLEngine.selectRowByID(mTarget.getBaseClass(),iID));
             Optional<?> objResult = Optional.of(mTarget.getBaseClass().newInstance());
@@ -118,7 +117,7 @@ public class SQLOperationHandler {
         if (!mKnownTables.contains(mTarget)) {
             return Optional.empty();
         }
-        try (Connection objConnection = objConnFactory.getConnection()) {
+        try (Connection objConnection = Configuration.getConnection()) {
             Statement sStatement = objConnection.createStatement();
             ResultSet objRs = sStatement.executeQuery(DQLEngine.selectLastRowById(mTarget.getBaseClass()));
             Optional<?> objResult = Optional.of(mTarget.getBaseClass().newInstance());
@@ -168,7 +167,7 @@ public class SQLOperationHandler {
                 return persistThis(objTarget);
             }
         }
-        try (Connection objConnection = objConnFactory.getConnection()) {
+        try (Connection objConnection = Configuration.getConnection()) {
             Statement sStatement = objConnection.createStatement();
             sStatement.execute("begin");
             String strSql = DMLEngine.updateRowById(objTarget);
@@ -190,7 +189,7 @@ public class SQLOperationHandler {
                 throw new NoSuchElementException("Table named " + mTarget.getTableName() + " not found in database! It might have been dropped already.");
             }
         }
-        try (Connection objConnection = objConnFactory.getConnection()) {
+        try (Connection objConnection = Configuration.getConnection()) {
             Statement sStatement = objConnection.createStatement();
             if (sStatement.executeUpdate(DMLEngine.deleteRow(objTarget)) > 0) {
                 return true;
