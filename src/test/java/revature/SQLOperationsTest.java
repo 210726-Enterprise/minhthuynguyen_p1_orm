@@ -32,15 +32,10 @@ class SQLOperationsTest {
     }
 
     @Test
-    @Order(2)
-    void getMetamodelByClassName() {
-        //Assertions.assertEquals(Configuration.getMetamodelByClassName(TestClass.class.getName()))
-    }
-
-    @Test
     @Order(3)
     void insertRow() throws SQLException, InvocationTargetException, InstantiationException, IllegalAccessException {
         Assertions.assertTrue(objHandler.persistThis(test).isPresent());
+        Assertions.assertTrue(objHandler.persistThis(new TestClass(null,3)).isPresent());
     }
 
     @Test
@@ -81,6 +76,17 @@ class SQLOperationsTest {
     @Order(7)
     void delete() throws SQLException, InvocationTargetException, IllegalAccessException, InstantiationException {
         int iId = test.getId();
+        Assertions.assertTrue(objHandler.delete(test));
+        Assertions.assertFalse(objHandler.retrieveByID(iId,TestClass.class).isPresent());
+    }
+
+    @Test
+    @Order(8)
+    void insertThenDeleteWithoutId() throws SQLException, InvocationTargetException, InstantiationException, IllegalAccessException {
+        test.setTestField2((int)(Math.random()*100000));
+        Assertions.assertTrue(objHandler.persistThis(test).isPresent());
+        int iId = ((TestClass)objHandler.retrieveNewest(Configuration.getMetamodelByClassName(TestClass.class.getName())).get()).getId();
+        test.setId(0);
         Assertions.assertTrue(objHandler.delete(test));
         Assertions.assertFalse(objHandler.retrieveByID(iId,TestClass.class).isPresent());
     }

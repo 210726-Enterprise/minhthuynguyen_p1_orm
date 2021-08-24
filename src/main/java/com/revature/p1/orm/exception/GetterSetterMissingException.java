@@ -1,5 +1,10 @@
 package com.revature.p1.orm.exception;
 
+/**
+ * Exception thrown when an SQLField attempts to find a setter/getter for its
+ * corresponding Field, but cannot find one in the corresponding model class'
+ * declared methods.
+ */
 public class GetterSetterMissingException extends RuntimeException {
     public GetterSetterMissingException() {
         super();

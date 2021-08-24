@@ -1,21 +1,32 @@
 package com.revature.p1.orm.persistence;
 
 import com.revature.p1.orm.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
 import java.util.*;
 
+/**
+ * Instantiated DAO class that performs SQL operations. Each instance keeps its own ArrayList of known tables.
+ *
+ * TODO: Turn all functionality here into static methods and fields OR consider whether this would work better as a singleton class.
+ */
 public class SQLOperationHandler {
-    //private final Configuration objConnFactory;
+    private static final Logger lLog4j = LoggerFactory.getLogger(SQLOperationHandler.class);
+
     private final ArrayList<Metamodel<?>> mKnownTables;
-
-
     public SQLOperationHandler() throws SQLException {
         mKnownTables = new ArrayList<>();
         updateExtantTables();
     }
 
+    /**
+     * Updates list of metamodels for whom a table with matching table name is found in the database.
+     * Called in the default constructor, and whenever an operation is passed a metamodel that's not on the list to double check.
+     * @throws SQLException
+     */
     private void updateExtantTables() throws SQLException {
         try (Connection objConnection = Configuration.getConnection()) {
             PreparedStatement sPrep = objConnection.prepareStatement(DQLEngine.prepareIfTableExists());
@@ -26,8 +37,10 @@ public class SQLOperationHandler {
                             sPrep.setString(1,m.getTableName());
                             ResultSet objRs = sPrep.executeQuery();
                             return(objRs.next());
-                        } catch (SQLException throwables) {
-                            throwables.printStackTrace();
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            lLog4j.error(e.getMessage());
+                            lLog4j.error(e.getSQLState());
                             return false;
                         }
                     }).forEach(m -> mKnownTables.add(m));
@@ -35,37 +48,43 @@ public class SQLOperationHandler {
     }
 
     /** CRUD - Create
-     *
-     * @param obj
-     * @return
-     * @throws SQLException
-     * @throws InvocationTargetException
-     * @throws IllegalAccessException
+     * Currently, a single method handles both table creation (C) and row insertion (U).
      */
-    public Optional<?> persistThis(Object obj) throws SQLException, InvocationTargetException,InstantiationException,IllegalAccessException {
+    /**
+     * Catch-all method that checks whether the class of the passed model object already has a table in the database. If it doesn't, creates a new table for that class by inferring columns from the class' annotated fields. Afterwards insert a new row to the table based on the contents of the input object's annotated fields.
+     *
+     * @param objInput Object to be persisted.
+     * @return An optional based on insertion results.
+     *          - If insertion was successful and the model class contains a primary key, returns optional of an object representing the highest ID row in the table. (Helps confirm data was inserted correctly.)
+     *          - If insertion was successful but the model class has no primary key, return optional of the input object.
+     *          - If insertion was unsuccessful but no exceptions/errors were encountered, returns an empty optional.
+     */
+    public Optional<?> persistThis(Object objInput) throws SQLException, InvocationTargetException,InstantiationException,IllegalAccessException {
         try (Connection objConnection = Configuration.getConnection()) {
-            Metamodel<Class<?>> mTarget = Configuration.getMetamodelByClassName(obj.getClass().getName());
+            Metamodel<Class<?>> mTarget = Configuration.getMetamodelByClassName(objInput.getClass().getName());
             Statement sStatement = objConnection.createStatement();
             if (!mKnownTables.contains(mTarget)) {
-                sStatement.execute(DDLEngine.createByClass(obj.getClass()));
+                sStatement.execute(DDLEngine.createByClass(objInput.getClass()));
                 mKnownTables.add(mTarget);
             }
-            if (sStatement.executeUpdate(DMLEngine.insertRow(obj)) > 0) {
-                return retrieveNewest(mTarget);
+            if (sStatement.executeUpdate(DMLEngine.insertRow(objInput)) > 0) {
+                if (mTarget.getPrimaryKey()!=null) {
+                    return retrieveNewest(mTarget);
+                }
+                lLog4j.trace("Persisted new object of class " + mTarget.getBaseClass().getName());
+                return Optional.of(objInput);
             }
             return Optional.empty();
         }
     }
 
     /** CRUD - Read
-     *
-     * @param iID
-     * @param cTarget
-     * @return
-     * @throws SQLException
-     * @throws InvocationTargetException
-     * @throws InstantiationException
-     * @throws IllegalAccessException
+     */
+    /**
+     * Retrieves an object representing data in the requested row. Requires the primary key of the desired row.
+     * @param iID int primary key of desired row.
+     * @param cTarget Accepts either a reference to the model class or metamodel associated with the desired table, or a String of the model class' fully qualified name.
+     * @return Optional of a model object that contains the data retrieved. Returns an empty optional if no table with the table name specified in the object's metamodel is found, or if the SQL query returned zero rows.
      */
     public Optional<?> retrieveByID(int iID, Class<?> cTarget) throws SQLException, InvocationTargetException, InstantiationException, IllegalAccessException {
         return retrieveByMetamodel(iID, Configuration.getMetamodelByClassName(cTarget.getName()));
@@ -97,6 +116,8 @@ public class SQLOperationHandler {
                                         return f.getColumnName().equals(objRs.getMetaData().getColumnName(iTemp));
                                     } catch (SQLException e) {
                                         e.printStackTrace();
+                                        lLog4j.error(e.getMessage());
+                                        lLog4j.error(e.getSQLState());
                                         return false;
                                     }
                                 })
@@ -107,6 +128,7 @@ public class SQLOperationHandler {
                     }
                 }
                 objConnection.close();
+                lLog4j.trace("SELECT query performed for class " + mTarget.getBaseClass().getName());
                 return objResult;
             } else {
                 objConnection.close();
@@ -115,8 +137,14 @@ public class SQLOperationHandler {
         }
     }
 
+    /**
+     * Retrieves the most recently inserted extant row of a desired table, but only if it has a primary key column.
+     * The query is based on highest primary key ID, and thus this does not take into account deleted rows or rows with manually assigned IDs (manual ID assignment is currently outside the scope of this ORM).
+     * @param mTarget Metamodel associated with target table.
+     * @return Optional of an object representing the row retrieved. Returns empty optional instead if no rows are present in the table.
+     */
     public Optional<?> retrieveNewest(Metamodel<?> mTarget) throws SQLException, InvocationTargetException, InstantiationException, IllegalAccessException {
-        if (!mKnownTables.contains(mTarget)) {
+        if (!mKnownTables.contains(mTarget) || mTarget.getPrimaryKey() == null) {
             return Optional.empty();
         }
         try (Connection objConnection = Configuration.getConnection()) {
@@ -136,6 +164,8 @@ public class SQLOperationHandler {
                                         return f.getColumnName().equals(objRs.getMetaData().getColumnName(iTemp));
                                     } catch (SQLException e) {
                                         e.printStackTrace();
+                                        lLog4j.error(e.getMessage());
+                                        lLog4j.error(e.getSQLState());
                                         return false;
                                     }
                                 })
@@ -154,7 +184,13 @@ public class SQLOperationHandler {
         }
     }
 
-
+    /** CRUD - Update
+     */
+    /**
+     * Updates a database row with primary key matching that of the object passed. Code logic includes some redundancy for future implementation of the ability to update one or more rows based on matching column values, but for now this only works one row at a time and requires a primary key for finding the desired row.
+     * @param objTarget
+     * @return Optional of the input object if update successful; empty optional otherwise.
+     */
     public Optional<?> update(Object objTarget) throws SQLException, InvocationTargetException, IllegalAccessException, InstantiationException {
         return update(objTarget, 1);
     }
@@ -179,6 +215,7 @@ public class SQLOperationHandler {
                 return Optional.empty();
             }
             sStatement.execute("commit");
+            lLog4j.trace("Successfully updated a row for class " + mTarget.getBaseClass().getName());
             return Optional.of(objTarget);
         }
     }
@@ -194,6 +231,7 @@ public class SQLOperationHandler {
         try (Connection objConnection = Configuration.getConnection()) {
             Statement sStatement = objConnection.createStatement();
             if (sStatement.executeUpdate(DMLEngine.deleteRow(objTarget)) > 0) {
+                lLog4j.trace("Successfully deleted a row for class " + mTarget.getBaseClass().getName());
                 return true;
             }
         }

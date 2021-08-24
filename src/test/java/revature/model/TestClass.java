@@ -24,30 +24,24 @@ public class TestClass {
 		this.testField2 = testField2;
 	}
 
-	//@Getter(columnName = "test_field_1")
 	public String getTestField1() {
 		return testField1;
 	}
 
-	//@Setter(columnName = "test_field_1")
 	public void setTestField1(String testField1) {
 		this.testField1 = testField1;
 	}
 
-	//@Getter(columnName = "test_field_2")
 	public int getTestField2() {
 		return testField2;
 	}
 
-	//@Setter(columnName = "test_field_2")
 	public void setTestField2(int testField2) {
 		this.testField2 = testField2;
 	}
 
-	//@Getter(columnName = "test_id")
 	public int getId() { return id; }
 
-	//@Setter(columnName = "test_id")
 	public void setId(int iID) {
 		this.id = iID;
 	}

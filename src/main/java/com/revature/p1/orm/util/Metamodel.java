@@ -3,19 +3,25 @@ package com.revature.p1.orm.util;
 import com.revature.p1.orm.annotations.Column;
 import com.revature.p1.orm.annotations.Entity;
 import com.revature.p1.orm.annotations.Id;
-import com.revature.p1.orm.annotations.JoinColumn;
+import com.revature.p1.orm.persistence.SQLTypeMapping;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Metamodel of an annotated class that contains definitions for how objects of that class should be persisted in a SQL database.
+ * @param <T> Type of class provided.
+ */
 public class Metamodel<T> {
+    private static final Logger lLog4j = LoggerFactory.getLogger(Metamodel.class);
 
     private final Class<T> cModelClass;
-    private final IdField<Integer> fPrimaryKey;
+    private final IdField fPrimaryKey;
     private boolean bPKInitialized = false;
     private final List<ColumnField> fColumns;
-    private final List<ForeignKeyField> fForeignKeys;
 
     public static <T> Metamodel<T> of(Class<T> cClass) {
         if (cClass.getAnnotation(Entity.class) == null) {
@@ -28,7 +34,6 @@ public class Metamodel<T> {
         this.cModelClass = cModelClass;
         this.fPrimaryKey = getPrimaryKey();
         this.fColumns = getColumns();
-        this.fForeignKeys = getForeignKeys();
     }
 
     public String getClassName() {
@@ -47,7 +52,12 @@ public class Metamodel<T> {
         return cModelClass.getSimpleName();
     }
 
-    public IdField<Integer> getPrimaryKey() {
+    /**
+     * Gets a reference to the IdField representing this Metamodel's primary key column.
+     * On first call, searches the model class for an annotated IdField.
+     * @return IdField
+     */
+    public IdField getPrimaryKey() {
         if (fPrimaryKey == null) {
             if (bPKInitialized) {
                 return null;
@@ -55,7 +65,7 @@ public class Metamodel<T> {
             for (Field f : cModelClass.getDeclaredFields()) {
                 if (f.getAnnotation(Id.class) != null) {
                     bPKInitialized = true;
-                    return new IdField<>(f);
+                    return new IdField(f);
                 }
             }
             bPKInitialized = true;
@@ -64,11 +74,16 @@ public class Metamodel<T> {
         return fPrimaryKey;
     }
 
+    /**
+     * Gets a List containing all ColumnFields in this Metamodel.
+     * On first call, builds the List by searching through the model class for annotated ColumnFields.
+     * @return List of ColumnFields.
+     */
     public List<ColumnField> getColumns() {
         if (fColumns == null) {
-            Field[] fields = cModelClass.getDeclaredFields();
+            Field[] fFound = cModelClass.getDeclaredFields();
             List<ColumnField> fFoundColumns = new ArrayList<>();
-            for (Field field : fields) {
+            for (Field field : fFound) {
                 Column column = field.getAnnotation(Column.class);
                 if (column != null) {
                     fFoundColumns.add(new ColumnField(field));
@@ -79,15 +94,15 @@ public class Metamodel<T> {
         return fColumns;
     }
 
+    /**
+     * Gets a List of all SQLFields corresponding to columns of any kind in this Metamodel.
+     * Builds the list from known SQLFields on first call.
+     * @return List of SQLFields.
+     */
     public List<SQLField> getTableFields() {
         List<SQLField> fAllFields = new ArrayList<>();
         if (getPrimaryKey() != null) {
             fAllFields.add(getPrimaryKey());
-        }
-        if (!getForeignKeys().isEmpty()) {
-            for (ForeignKeyField f : getForeignKeys()) {
-                fAllFields.add(f);
-            }
         }
         if (!getColumns().isEmpty()) {
             for (ColumnField f : getColumns()) {
@@ -96,24 +111,16 @@ public class Metamodel<T> {
         }
         return fAllFields;
     }
+
+    /**
+     * Returns a List containing the names of all SQLFields in the previous method's List.
+     * @return
+     */
     public List<String> getTableFieldNames() {
         List<String> strFieldNames = new ArrayList<>();
         for (SQLField f : getTableFields()) {
             strFieldNames.add(f.getColumnName());
         }
         return strFieldNames;
-    }
-
-    public List<ForeignKeyField> getForeignKeys() {
-
-        List<ForeignKeyField> foreignKeyFields = new ArrayList<>();
-        Field[] fields = cModelClass.getDeclaredFields();
-        for (Field field : fields) {
-            JoinColumn column = field.getAnnotation(JoinColumn.class);
-            if (column != null) {
-                foreignKeyFields.add(new ForeignKeyField(field));
-            }
-        }
-        return foreignKeyFields;
     }
 }
