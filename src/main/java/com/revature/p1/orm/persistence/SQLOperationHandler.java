@@ -210,7 +210,7 @@ public class SQLOperationHandler {
             sStatement.execute("begin");
             String strSql = DMLEngine.updateRowById(objTarget);
             int iUpdated = sStatement.executeUpdate(strSql);
-            if (iUpdated  < iRowCount) {
+            if (iUpdated  != iRowCount) {
                 sStatement.execute("rollback");
                 return Optional.empty();
             }
@@ -230,11 +230,22 @@ public class SQLOperationHandler {
         }
         try (Connection objConnection = Configuration.getConnection()) {
             Statement sStatement = objConnection.createStatement();
-            if (sStatement.executeUpdate(DMLEngine.deleteRow(objTarget)) > 0) {
+            int iDeleted = 0;
+            sStatement.execute("begin");
+            iDeleted = sStatement.executeUpdate(DMLEngine.deleteRow(objTarget));
+            if (iDeleted == 1) {
+                sStatement.execute("commit");
                 lLog4j.trace("Successfully deleted a row for class " + mTarget.getBaseClass().getName());
                 return true;
             }
+            if (iDeleted == 0) {
+                lLog4j.trace("No rows were deleted!");
+            }
+            if (iDeleted > 1) {
+                lLog4j.trace("Multiple row matched input row, rolling back transaction!");
+            }
+            sStatement.execute("rollback");
         }
-        return false;
+        throw new BatchUpdateException();
     }
 }

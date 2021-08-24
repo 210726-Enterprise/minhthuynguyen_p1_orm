@@ -33,7 +33,7 @@ public class DQLEngine {
      * @return String for SQL prepared statement.
      */
     public static String prepareIfTableExists() {
-        return "select exists (select from information_schema.tables where table_name = ?)";
+        return "select * from information_schema.tables where table_name = ?";
     }
 
     /**

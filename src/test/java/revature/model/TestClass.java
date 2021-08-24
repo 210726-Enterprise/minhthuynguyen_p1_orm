@@ -2,7 +2,7 @@ package revature.model;
 
 import com.revature.p1.orm.annotations.*;
 
-@Entity(tableName= "test_table")
+@Entity(tableName= "test_tables")
 public class TestClass {
 	
 	@Id(columnName = "test_id")
