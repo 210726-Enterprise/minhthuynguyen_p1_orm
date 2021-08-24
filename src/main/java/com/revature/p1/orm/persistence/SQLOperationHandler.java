@@ -220,6 +220,13 @@ public class SQLOperationHandler {
         }
     }
 
+    /**
+     * Attempts to delete exactly one row where either the primary key matches that of the input object, or, if no positive integer primary key is provided, where all of the input object's non-null column fields match the value of corresponding columns of the row.
+     * Technically supports batch delete, but it is currently not allowed.
+     * @param objTarget
+     * @return True if successful, false otherwise.
+     * @throws BatchUpdateException Thrown when input object matches multiple rows.
+     */
     public boolean delete(Object objTarget) throws SQLException, InvocationTargetException, IllegalAccessException {
         Metamodel<?> mTarget = Configuration.getMetamodelByClassName(objTarget.getClass().getName());
         if (!mKnownTables.contains(mTarget)) {
@@ -238,14 +245,15 @@ public class SQLOperationHandler {
                 lLog4j.trace("Successfully deleted a row for class " + mTarget.getBaseClass().getName());
                 return true;
             }
+            sStatement.execute("rollback");
             if (iDeleted == 0) {
                 lLog4j.trace("No rows were deleted!");
             }
             if (iDeleted > 1) {
                 lLog4j.trace("Multiple row matched input row, rolling back transaction!");
+                throw new BatchUpdateException();
             }
-            sStatement.execute("rollback");
+            return false;
         }
-        throw new BatchUpdateException();
     }
 }
